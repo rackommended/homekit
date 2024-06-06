@@ -1,0 +1,87 @@
+esphome:
+  name: garagedoor_esp01
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  ssid: ""
+  password: ""
+
+  ap:
+    ssid: "Garagedoor AP"
+    password: "blabla"
+
+captive_portal:
+
+# Enable Web server.
+web_server:
+  port: 80
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+# Sync time with Home Assistant.
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    
+# Global to store the on/off state of the chime
+globals:
+  - id: garagedoor
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+
+switch:
+  - platform: restart
+    name: Garagedoor Restart
+
+  - platform: gpio
+    id: relay
+    inverted: true
+    name: Garagedoor Open Close
+    pin: GPIO0
+    on_turn_on:
+      - delay: 500ms
+      - switch.turn_off: relay
+
+  - platform: template
+    name: Garagedoor Active
+    id: garagedoor_active
+    restore_state: false
+    turn_on_action:
+      - globals.set:
+          id: garagedoor
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: garagedoor
+          value: 'false'
+    lambda: |-
+      return id(garagedoor);
+
+binary_sensor:
+  - platform: gpio
+    id: button
+    name: Garagedoor Button
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: 25ms
+      - delayed_off: 25ms
+    on_press:
+      then:
+        if:
+          condition:
+            - switch.is_on: garagedoor_active
+          then:
+            - switch.turn_on: relay
+    # on_release:
+    #   - switch.turn_off: relay
